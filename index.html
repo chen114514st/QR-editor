@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二维码编辑器 · 多场景生成</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(145deg, #f6f9fc 0%, #e9f0f7 100%);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+  }
+  .card {
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(8px);
+    border-radius: 2.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    padding: 2rem 2rem 2.5rem; max-width: 1000px; width: 100%;
+  }
+  h1 { font-size: 2rem; font-weight: 600; color: #0a2540; display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.25rem; line-height: 1.2; }
+  h1 span { background: #1e3a8a; color: white; font-size: 0.9rem; padding: 0.2rem 1rem; border-radius: 100px; margin-left: auto; }
+  .subhead { color: #4b5b6b; font-size: 1rem; margin-bottom: 2rem; border-left: 3px solid #3b82f6; padding-left: 1rem; }
+  .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+  .controls { display: flex; flex-direction: column; gap: 1.2rem; min-width: 0; }
+  
+  .mode-tabs {
+    display: flex; gap: 0.4rem; background: #f1f5f9; padding: 0.4rem;
+    border-radius: 3rem; border: 1px solid #e2e8f0; overflow-x: auto;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .mode-tabs::-webkit-scrollbar { display: none; }
+  .mode-tab {
+    flex: 1 0 auto; padding: 0.6rem 1rem; border-radius: 2rem; border: none;
+    background: transparent; font-size: 0.85rem; font-weight: 600; color: #64748b;
+    cursor: pointer; transition: 0.2s; white-space: nowrap;
+  }
+  .mode-tab.active { background: white; color: #0a2540; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+
+  .input-group { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+  .input-group label { font-weight: 600; font-size: 0.85rem; color: #1e293b; text-transform: uppercase; }
+  .text-input, textarea {
+    width: 100%; padding: 0.9rem 1.1rem; font-size: 0.95rem;
+    font-family: 'SF Mono', 'Fira Code', monospace; border: 2px solid #e2e8f0;
+    border-radius: 1.2rem; background: white; transition: 0.2s; min-width: 0;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  .text-input:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,0.15); }
+  
+  .size-control {
+    display: flex; align-items: center; gap: 1rem; background: #f1f5f9;
+    padding: 0.7rem 1.2rem; border-radius: 3rem; border: 1px solid #e2e8f0; min-width: 0;
+  }
+  .size-control label { font-weight: 500; color: #334155; font-size: 0.85rem; white-space: nowrap; }
+  .size-control input[type="range"] { flex: 1; height: 6px; -webkit-appearance: none; background: #cbd5e1; border-radius: 10px; outline: none; min-width: 0; }
+  .size-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; background: #1e3a8a; border-radius: 50%; border: 2px solid white;
+  }
+  .size-value {
+    font-weight: 600; font-family: monospace; background: white; padding: 0.15rem 0.8rem;
+    border-radius: 2rem; border: 1px solid #cbd5e1; min-width: 62px; text-align: center; font-size: 0.85rem; flex-shrink: 0;
+  }
+  .color-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .color-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; background: white;
+    padding: 0.5rem 1rem 0.5rem 1.2rem; border-radius: 3rem; border: 1px solid #e2e8f0; flex: 1 1 auto; min-width: 0;
+  }
+  .color-item span { font-size: 0.85rem; font-weight: 500; color: #334155; }
+  .color-item input[type="color"] {
+    width: 34px; height: 34px; border: none; background: transparent; cursor: pointer; border-radius: 50%; padding: 0; flex-shrink: 0;
+  }
+  .color-item input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .color-item input[type="color"]::-webkit-color-swatch { border: 2px solid white; border-radius: 50%; }
+  
+  .button-group { display: flex; gap: 0.6rem; margin-top: 0.4rem; flex-wrap: wrap; }
+  .btn {
+    padding: 0.8rem 1.2rem; font-weight: 600; font-size: 0.9rem; border-radius: 3rem;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;
+    background: white; color: #1e293b; border: 1px solid #cbd5e1; flex: 1 1 auto; min-width: 0;
+  }
+  .btn-primary { background: #0a2540; color: white; border-color: #0a2540; }
+  .btn:hover { background: #f8fafc; }
+  .btn-primary:hover { background: #133a5e; }
+  .btn:active { transform: scale(0.97); }
+  
+  .preview {
+    background: white; border-radius: 2rem; padding: 1.8rem 1.5rem 2rem;
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; min-height: 460px; min-width: 0;
+  }
+  .qr-wrapper {
+    background: white; padding: 1.5rem; border-radius: 1.8rem;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.06), 0 0 0 1px #e9edf3 inset;
+    width: 100%; aspect-ratio: 1/1; max-width: 340px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.2rem;
+  }
+  #qrcode { width: 100% !important; height: 100% !important; display: flex; align-items: center; justify-content: center; }
+  #qrcode canvas { width: 100% !important; height: 100% !important; display: block; border-radius: 12px; }
+  .preview-footer {
+    font-size: 0.85rem; color: #64748b; display: flex; align-items: center; gap: 0.5rem;
+    background: #f8fafc; padding: 0.5rem 1.2rem; border-radius: 40px;
+  }
+  .badge { background: #e6f0ff; color: #1e3a8a; font-weight: 600; padding: 0.2rem 0.8rem; border-radius: 30px; font-size: 0.75rem; }
+  
+  .wifi-select {
+    flex: 1; padding: 0.6rem 1rem; border-radius: 2rem; border: 1px solid #cbd5e1;
+    background: white; font-size: 0.9rem; font-weight: 500; color: #1e293b; outline: none; min-width: 0; width: 100%;
+  }
+  .notice { font-size: 0.8rem; padding: 0.6rem 1rem; border-radius: 0.9rem; }
+  .notice[hidden] { display: none; }
+  .notice.warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .notice.error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  
+  .btn:focus-visible, .wifi-select:focus-visible, input[type="range"]:focus-visible, input[type="color"]:focus-visible, .text-input:focus-visible, textarea:focus-visible, .mode-tab:focus-visible, #logoUploadWrap label:focus-within {
+    outline: 2px solid #3b82f6; outline-offset: 2px;
+  }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn:disabled:hover { background: white; }
+  .btn-primary:disabled:hover { background: #0a2540; }
+
+  .filename-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; min-width: 0; }
+  .filename-row .text-input { padding: 0.7rem 1rem; font-size: 0.85rem; border-radius: 2rem; flex: 1 1 auto; min-width: 0; }
+  .filename-row .ext {
+    font-size: 0.8rem; font-weight: 600; color: #64748b; background: #f1f5f9;
+    padding: 0.4rem 0.8rem; border-radius: 2rem; border: 1px solid #e2e8f0; flex-shrink: 0;
+  }
+
+  .mode-panel { display: none; flex-direction: column; gap: 1rem; }
+  .mode-panel.active { display: flex; }
+
+  .vcard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .vcard-grid .full-width { grid-column: span 2; }
+  @media (max-width: 720px) { .vcard-grid { grid-template-columns: 1fr; } .vcard-grid .full-width { grid-column: span 1; } }
+
+  @media (max-width: 720px) {
+    .editor-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+    .card { padding: 1.2rem 1rem 1.5rem; border-radius: 1.5rem; }
+    h1 { font-size: 1.5rem; gap: 0.5rem; }
+    .subhead { font-size: 0.9rem; margin-bottom: 1.2rem; }
+    .size-control { padding: 0.6rem 0.8rem; gap: 0.6rem; }
+    .size-control input[type="range"] { height: 8px; }
+    .size-control input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+    .size-value { min-width: 55px; font-size: 0.8rem; padding: 0.15rem 0.5rem; }
+    .color-row { flex-direction: column; gap: 0.6rem; }
+    .btn { padding: 0.75rem 1rem; font-size: 0.9rem; }
+    .preview { padding: 1.2rem 1rem; min-height: auto; }
+    .qr-wrapper { max-width: 100%; padding: 1rem; margin-bottom: 1rem; }
+  }
+  * {-webkit-tap-highlight-color: transparent;}	/* 讨厌webkit-tap-highlight! */
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📷 二维码编辑器 <span>多场景</span></h1>
+  <div class="subhead">QR高清即时生成</div>
+
+  <div class="editor-grid">
+    <div class="controls">
+      
+      <div class="mode-tabs" id="modeTabs">
+        <button class="mode-tab active" data-mode="text">文本</button>
+        <button class="mode-tab" data-mode="wifi">WiFi</button>
+        <button class="mode-tab" data-mode="email">邮箱</button>
+        <button class="mode-tab" data-mode="tel">电话</button>
+        <button class="mode-tab" data-mode="vcard">名片</button>
+        <button class="mode-tab" data-mode="geo">位置</button>
+      </div>
+
+      <div class="mode-panel active" id="panel-text">
+        <div class="input-group">
+          <label>内容 (文本 / URL)</label>
+          <textarea id="textInput" placeholder="输入网址、文本或任意内容...">https://github.com/</textarea>
+        </div>
+      </div>
+
+      <div class="mode-panel" id="panel-wifi">
+        <div class="input-group">
+          <label>WiFi 名称 (SSID)</label>
+          <input type="text" id="wifiSsid" class="text-input" placeholder="MyWiFi">
+        </div>
+        <div class="input-group">
+          <label>密码</label>
+          <input type="text" id="wifiPassword" class="text-input" placeholder="password">
+        </div>
+        <div class="size-control">
+          <label>加密方式</label>
+          <select id="wifiEncryption" class="wifi-select">
+            <option value="WPA">WPA / WPA2</option>
+            <option value="WEP">WEP</option>
+            <option value="nopass">无密码</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mode-panel" id="panel-email">
+        <div class="input-group">
+          <label>收件人邮箱</label>
+          <input type="email" id="emailTo" class="text-input" placeholder="hello@example.com">
+        </div>
+        <div class="input-group">
+          <label>邮件主题 (选填)</label>
+          <input type="text" id="emailSubject" class="text-input" placeholder="主题">
+        </div>
+        <div class="input-group">
+          <label>正文内容 (选填)</label>
+          <textarea id="emailBody" placeholder="邮件正文..."></textarea>
+        </div>
+      </div>
+
+      <div class="mode-panel" id="panel-tel">
+        <div class="input-group">
+          <label>电话号码</label>
+          <input type="tel" id="telNumber" class="text-input" placeholder="+86 138 0000 0000">
+        </div>
+        <p style="font-size:0.75rem; color:#64748b; padding-left: 0.5rem;">支持国际区号，如 +86、+1</p>
+      </div>
+
+      <div class="mode-panel" id="panel-vcard">
+        <div class="vcard-grid">
+          <div class="input-group">
+            <label>姓名</label>
+            <input type="text" id="vcardName" class="text-input" placeholder="张三">
+          </div>
+          <div class="input-group">
+            <label>公司 (选填)</label>
+            <input type="text" id="vcardOrg" class="text-input" placeholder="某某科技">
+          </div>
+          <div class="input-group">
+            <label>职位 (选填)</label>
+            <input type="text" id="vcardTitle" class="text-input" placeholder="产品经理">
+          </div>
+          <div class="input-group">
+            <label>电话 (选填)</label>
+            <input type="tel" id="vcardPhone" class="text-input" placeholder="13800000000">
+          </div>
+          <div class="input-group full-width">
+            <label>邮箱 (选填)</label>
+            <input type="email" id="vcardEmail" class="text-input" placeholder="zhangsan@example.com">
+          </div>
+          <div class="input-group full-width">
+            <label>网址 (选填)</label>
+            <input type="url" id="vcardUrl" class="text-input" placeholder="https://example.com">
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-panel" id="panel-geo">
+        <div class="size-control">
+          <label>位置格式</label>
+          <select id="geoType" class="wifi-select">
+            <option value="address">地址 / 地名搜索</option>
+            <option value="coords">经纬度坐标</option>
+          </select>
+        </div>
+        <div class="input-group" id="geoAddressGroup">
+          <label>地点名称 / 地址</label>
+          <input type="text" id="geoAddress" class="text-input" placeholder="例如：上海市东方明珠广播电视塔">
+        </div>
+        <div class="vcard-grid" id="geoCoordsGroup" style="display:none;">
+          <div class="input-group">
+            <label>纬度 (Latitude)</label>
+            <input type="text" id="geoLat" class="text-input" placeholder="31.2397">
+          </div>
+          <div class="input-group">
+            <label>经度 (Longitude)</label>
+            <input type="text" id="geoLng" class="text-input" placeholder="121.4998">
+          </div>
+        </div>
+        <p style="font-size:0.75rem; color:#64748b; padding-left: 0.5rem;">扫码后手机将自动调起地图导航。</p>
+      </div>
+
+      <div class="size-control">
+        <label>尺寸</label>
+        <input type="range" id="sizeSlider" min="128" max="512" value="280" step="8">
+        <span class="size-value" id="sizeDisplay">280px</span>
+      </div>
+
+      <div class="size-control">
+        <label>模块圆角</label>
+        <input type="range" id="moduleRadiusSlider" min="0" max="50" value="0" step="1">
+        <span class="size-value" id="moduleRadiusDisplay">0%</span>
+      </div>
+
+      <div class="color-row">
+        <div class="color-item"><span>前景</span><input type="color" id="fgColor" value="#0a2540"></div>
+        <div class="color-item"><span>背景</span><input type="color" id="bgColor" value="#ffffff"></div>
+      </div>
+
+      <div class="input-group">
+        <label>中心样式</label>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+          <select id="centerType" class="wifi-select" style="flex:1; min-width:110px;">
+            <option value="none">无</option>
+            <option value="text">文字</option>
+            <option value="emoji">Emoji</option>
+            <option value="image">图片 Logo</option>
+          </select>
+          <input type="text" id="centerText" class="text-input"
+                 style="flex:2; padding:0.6rem 1rem; min-width:120px; display:none;"
+                 placeholder="输入文字或Emoji" value="❤" maxlength="8">
+        </div>
+
+        <div class="size-control" id="centerSizeControl" style="display:none;">
+          <label>中心大小</label>
+          <input type="range" id="centerSizeSlider" min="10" max="33" value="22" step="1">
+          <span class="size-value" id="centerSizeDisplay">22%</span>
+        </div>
+        <div class="notice warn" id="centerSizeNotice" hidden> 中心区域超过 28%，二维码遮挡过多，扫描成功率会下降。</div>
+        <div class="size-control" id="centerRadiusControl" style="display:none;">
+          <label>圆角</label>
+          <input type="range" id="centerRadiusSlider" min="0" max="50" value="50" step="1">
+          <span class="size-value" id="centerRadiusDisplay">50%</span>
+        </div>
+
+        <div id="logoUploadWrap" style="display:none; margin-top:0.4rem;">
+          <label for="logoFile" style="display:flex; align-items:center; gap:0.6rem; background:#f1f5f9; padding:0.7rem 1.2rem; border-radius:2rem; border:1px dashed #94a3b8; cursor:pointer; font-weight:500; color:#334155; font-size:0.9rem;">
+            ️选择 Logo 图片
+            <input type="file" id="logoFile" accept="image/*" style="display:none;">
+          </label>
+          <div id="logoPreview" style="margin-top:0.6rem; display:flex; align-items:center; gap:0.8rem; font-size:0.8rem; color:#64748b;"></div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>文件名</label>
+        <div class="filename-row">
+          <input type="text" id="filenameInput" class="text-input" placeholder="留空则自动命名" maxlength="60">
+          <span class="ext">.png / .svg</span>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn" id="downloadBtn">下载 PNG</button>
+        <button class="btn" id="downloadSvgBtn">下载 SVG</button>
+      </div>
+      <div class="button-group">
+        <button class="btn btn-primary" id="regenerateBtn"> 立即刷新</button>
+        <button class="btn" id="resetBtn" style="flex:0 0 auto;">↺ 恢复默认</button>
+      </div>
+      <p style="font-size:0.75rem; color:#6b7a8a; text-align:center;">调整后自动更新 · 中心有内容时纠错等级自动为 H</p>
+    </div>
+
+    <div class="preview">
+      <div class="qr-wrapper"><div id="qrcode"></div></div>
+      <div class="notice error" id="previewError" style="margin-bottom:0.8rem;" hidden></div>
+      <div class="preview-footer"><span class="badge">高清</span>基于qrcode</div>
+    </div>
+  </div>
+</div>
+
+<script src="qrcode.min.zh.js"></script>
+<script>
+(function() {
+  const $ = id => document.getElementById(id);
+
+  const modeTabs = $('modeTabs');
+  const qrcodeDiv = $('qrcode');
+  const sizeSlider = $('sizeSlider'), sizeDisplay = $('sizeDisplay');
+  const moduleRadiusSlider = $('moduleRadiusSlider'), moduleRadiusDisplay = $('moduleRadiusDisplay');
+  const fgColor = $('fgColor'), bgColor = $('bgColor');
+  const downloadBtn = $('downloadBtn'), downloadSvgBtn = $('downloadSvgBtn');
+  const regenerateBtn = $('regenerateBtn'), resetBtn = $('resetBtn');
+  const previewError = $('previewError');
+  const filenameInput = $('filenameInput');
+
+  const centerType = $('centerType'), centerText = $('centerText');
+  const centerSizeControl = $('centerSizeControl'), centerSizeSlider = $('centerSizeSlider'), centerSizeDisplay = $('centerSizeDisplay');
+  const centerSizeNotice = $('centerSizeNotice');
+  const centerRadiusControl = $('centerRadiusControl'), centerRadiusSlider = $('centerRadiusSlider'), centerRadiusDisplay = $('centerRadiusDisplay');
+  const logoUploadWrap = $('logoUploadWrap'), logoFile = $('logoFile'), logoPreview = $('logoPreview');
+
+  const textInput = $('textInput');
+  const wifiSsid = $('wifiSsid'), wifiPassword = $('wifiPassword'), wifiEncryption = $('wifiEncryption');
+  const emailTo = $('emailTo'), emailSubject = $('emailSubject'), emailBody = $('emailBody');
+  const telNumber = $('telNumber');
+  const vcardName = $('vcardName'), vcardOrg = $('vcardOrg'), vcardTitle = $('vcardTitle'), vcardPhone = $('vcardPhone'), vcardEmail = $('vcardEmail'), vcardUrl = $('vcardUrl');
+  const geoType = $('geoType'), geoAddressGroup = $('geoAddressGroup'), geoCoordsGroup = $('geoCoordsGroup');
+  const geoAddress = $('geoAddress'), geoLat = $('geoLat'), geoLng = $('geoLng');
+
+  let currentMode = 'text';
+  let logoImage = null, logoDataUrl = null;
+
+  function escapeWifi(s) { return s.replace(/([\\;,:"])/g, '\\$1'); }
+
+  // 【修复2】先转义反斜杠本身，再转义 ; , :，最后把换行转成字面量 \n
+  function escapeVCard(s) {
+    return (s || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/([;,:])/g, '\\$1')
+      .replace(/\n/g, '\\n');
+  }
+  function encodeText(s) { return encodeURIComponent(s || '').replace(/%20/g, '+'); }
+
+  // 复姓列表（用于 vCard 姓名拆分）
+  const COMPOUND_SURNAMES = /^(欧阳|司马|上官|诸葛|东方|皇甫|尉迟|公孙|慕容|长孙|宇文|司徒|司空|夏侯|令狐|端木|独孤|南宫|西门|百里|东郭|呼延)/;
+
+  geoType.addEventListener('change', function() {
+    const isCoords = this.value === 'coords';
+    geoAddressGroup.style.display = isCoords ? 'none' : 'flex';
+    geoCoordsGroup.style.display = isCoords ? 'grid' : 'none';
+    debounced();
+  });
+
+  function buildContent() {
+    if (currentMode === 'wifi') {
+      const ssid = wifiSsid.value.trim();
+      const pw = wifiPassword.value.trim();
+      const enc = wifiEncryption.value;
+      if (!ssid) return { content: '', error: '请填写 WiFi 名称 (SSID)' };
+      let body = `WIFI:T:${enc};S:${escapeWifi(ssid)};`;
+      if (enc !== 'nopass') body += `P:${escapeWifi(pw)};`;
+      body += 'H:false;;';
+      return { content: body, error: null };
+    }
+    
+    if (currentMode === 'email') {
+      const to = emailTo.value.trim();
+      if (!to) return { content: '', error: '请填写收件人邮箱' };
+      let url = `mailto:${to}`;
+      const params = [];
+      if (emailSubject.value.trim()) params.push(`subject=${encodeText(emailSubject.value.trim())}`);
+      if (emailBody.value.trim()) params.push(`body=${encodeText(emailBody.value.trim())}`);
+      if (params.length) url += `?${params.join('&')}`;
+      return { content: url, error: null };
+    }
+
+    if (currentMode === 'tel') {
+      const tel = telNumber.value.trim().replace(/\s+/g, '');
+      if (!tel) return { content: '', error: '请填写电话号码' };
+      return { content: `tel:${tel}`, error: null };
+    }
+
+    if (currentMode === 'vcard') {
+      const name = vcardName.value.trim();
+      if (!name) return { content: '', error: '请填写姓名' };
+
+      // 【修复3】智能拆分姓/名
+      let lastName = '', firstName = '';
+      if (/[\u4e00-\u9fa5]/.test(name)) {
+        if (name.length === 1) {
+          lastName = name;
+        } else if (COMPOUND_SURNAMES.test(name)) {
+          lastName = name.slice(0, 2);
+          firstName = name.slice(2);
+        } else {
+          lastName = name.slice(0, 1);
+          firstName = name.slice(1);
+        }
+      } else {
+        const parts = name.split(/\s+/);
+        if (parts.length === 1) {
+          lastName = parts[0];
+        } else {
+          lastName = parts[parts.length - 1];
+          firstName = parts.slice(0, -1).join(' ');
+        }
+      }
+
+      // 【修复2】【修复3】使用 \r\n 行分隔符，N: 结构化，字段经过转义
+      const CRLF = '\r\n';
+      let vcard = 'BEGIN:VCARD' + CRLF + 'VERSION:3.0' + CRLF;
+      vcard += `N:${escapeVCard(lastName)};${escapeVCard(firstName)};;;` + CRLF;
+      vcard += `FN:${escapeVCard(name)}` + CRLF;
+      if (vcardOrg.value.trim()) vcard += `ORG:${escapeVCard(vcardOrg.value.trim())}` + CRLF;
+      if (vcardTitle.value.trim()) vcard += `TITLE:${escapeVCard(vcardTitle.value.trim())}` + CRLF;
+      if (vcardPhone.value.trim()) vcard += `TEL;TYPE=CELL:${escapeVCard(vcardPhone.value.trim())}` + CRLF;
+      if (vcardEmail.value.trim()) vcard += `EMAIL;TYPE=WORK:${escapeVCard(vcardEmail.value.trim())}` + CRLF;
+      if (vcardUrl.value.trim()) vcard += `URL:${escapeVCard(vcardUrl.value.trim())}` + CRLF;
+      vcard += 'END:VCARD';
+
+      return { content: vcard, error: null };
+    }
+
+    if (currentMode === 'geo') {
+      if (geoType.value === 'address') {
+        const addr = geoAddress.value.trim();
+        if (!addr) return { content: '', error: '请填写地点名称或地址' };
+        return { content: `https://maps.google.com/?q=${encodeURIComponent(addr)}`, error: null };
+      } else {
+        const lat = parseFloat(geoLat.value);
+        const lng = parseFloat(geoLng.value);
+        if (isNaN(lat) || isNaN(lng)) return { content: '', error: '请填写有效的经纬度数字' };
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return { content: '', error: '经纬度范围不合法' };
+        return { content: `geo:${lat},${lng}`, error: null };
+      }
+    }
+
+    const t = textInput.value.trim();
+    if (!t) return { content: '', error: '请输入文本或网址' };
+    return { content: t, error: null };
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    document.querySelectorAll('.mode-panel').forEach(panel => {
+      panel.classList.toggle('active', panel.id === `panel-${mode}`);
+    });
+    debounced();
+  }
+
+  modeTabs.addEventListener('click', function(e) {
+    const btn = e.target.closest('.mode-tab');
+    if (btn) setMode(btn.dataset.mode);
+  });
+
+  function updateCenterUI() {
+    const t = centerType.value;
+    const isText = (t === 'text' || t === 'emoji');
+    const isImage = (t === 'image');
+    const hasCenter = (t !== 'none');
+
+    centerText.style.display = isText ? 'block' : 'none';
+    logoUploadWrap.style.display = isImage ? 'block' : 'none';
+    centerSizeControl.style.display = hasCenter ? 'flex' : 'none';
+    centerRadiusControl.style.display = hasCenter ? 'flex' : 'none';
+
+    const overLimit = hasCenter && parseInt(centerSizeSlider.value, 10) > 28;
+    centerSizeNotice.hidden = !overLimit;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function getModules(content, ecLevel) {
+    const qr = QRCode.create(content, { errorCorrectionLevel: ecLevel });
+    return qr.modules;
+  }
+
+  function drawStyledCanvas(size, cb) {
+    const built = buildContent();
+    if (built.error) {
+      previewError.textContent = built.error;
+      previewError.hidden = false;
+      qrcodeDiv.innerHTML = '';
+      return;
+    }
+    previewError.hidden = true;
+
+    const fg = fgColor.value, bg = bgColor.value;
+    const type = centerType.value;
+    const hasCenter = type !== 'none';
+    const ecLevel = hasCenter ? 'H' : 'M';
+
+    let modules;
+    try {
+      modules = getModules(built.content, ecLevel);
+    } catch (e) {
+      previewError.textContent = '生成失败：' + (e.message || '内容过长');
+      previewError.hidden = false;
+      qrcodeDiv.innerHTML = '';
+      return;
+    }
+
+        const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    const margin = 1;
+    const count = modules.size;
+    const total = count + margin * 2;
+    const cell = size / total;
+    const radiusPct = parseInt(moduleRadiusSlider.value, 10) / 100;
+    const r = cell * radiusPct / 2;
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, size, size);
+
+    ctx.fillStyle = fg;
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (modules.get(row, col)) {
+          const x = (col + margin) * cell;
+          const y = (row + margin) * cell;
+          if (r <= 0.01) {
+            ctx.fillRect(x, y, cell + 0.5, cell + 0.5);
+          } else {
+            roundRect(ctx, x, y, cell, cell, r);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    if (hasCenter) {
+      const cx = canvas.width / 2, cy = canvas.height / 2;
+      const pct = parseInt(centerSizeSlider.value, 10) / 100;
+      const boxSize = canvas.width * pct;
+      const radiusPctCenter = parseInt(centerRadiusSlider.value, 10) / 100;
+      const radius = boxSize * radiusPctCenter;
+
+      ctx.save();
+      roundRect(ctx, cx - boxSize/2, cy - boxSize/2, boxSize, boxSize, radius);
+      ctx.fillStyle = bg;
+      ctx.fill();
+      ctx.lineWidth = Math.max(2, canvas.width * 0.006);
+      ctx.strokeStyle = fg;
+      ctx.stroke();
+      ctx.restore();
+
+      if (type === 'text' || type === 'emoji') {
+        const str = centerText.value.trim();
+        if (str) {
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const isEmoji = /\p{Extended_Pictographic}/u.test(str);
+          const fontSize = boxSize * (isEmoji ? 0.62 : 0.5);
+          ctx.font = `600 ${fontSize}px ${isEmoji ? '"Apple Color Emoji","Segoe UI Emoji",sans-serif' : 'Inter,system-ui,sans-serif'}`;
+          ctx.fillStyle = fg;
+          ctx.fillText(str, cx, cy + fontSize * 0.04);
+          ctx.restore();
+        }
+      } else if (type === 'image') {
+        if (logoImage && logoImage.complete) {
+          const pad = boxSize * 0.15;
+          const maxW = boxSize - pad * 2, maxH = boxSize - pad * 2;
+          const ratio = logoImage.width / logoImage.height;
+          let dw = maxW, dh = maxH;
+          if (ratio > 1) dh = maxW / ratio; else dw = maxH * ratio;
+          const imgRadius = Math.min(radius * 0.9, Math.min(dw, dh) / 2);
+          ctx.save();
+          roundRect(ctx, cx - dw/2, cy - dh/2, dw, dh, imgRadius);
+          ctx.clip();
+          ctx.drawImage(logoImage, cx - dw/2, cy - dh/2, dw, dh);
+          ctx.restore();
+        } else {
+          ctx.save();
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = `500 ${canvas.width * 0.04}px system-ui`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('请上传 Logo', cx, cy);
+          ctx.restore();
+        }
+      }
+    }
+
+    cb(canvas);
+  }
+
+  function buildSvg(size, cb) {
+    const built = buildContent();
+    if (built.error) { cb(null, built.error); return; }
+
+    const fg = fgColor.value, bg = bgColor.value;
+    const type = centerType.value;
+    const hasCenter = type !== 'none';
+    const ecLevel = hasCenter ? 'H' : 'M';
+
+    let modules;
+    try {
+      modules = getModules(built.content, ecLevel);
+    } catch (e) { cb(null, e.message || '内容过长'); return; }
+
+    const margin = 1;
+    const count = modules.size;
+    const total = count + margin * 2;
+    const cell = size / total;
+    const radiusPct = parseInt(moduleRadiusSlider.value, 10) / 100;
+    const r = cell * radiusPct / 2;
+
+    // 【修复1】带边界保护的模块路径拼接
+    let paths = '';
+    const maxR = cell / 2;
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (modules.get(row, col)) {
+          const x = (col + margin) * cell;
+          const y = (row + margin) * cell;
+          if (r <= 0.01) {
+            paths += `M${x} ${y}h${cell}v${cell}h${-cell}z`;
+          } else {
+            const rr = Math.min(r, maxR);
+            const straight = Math.max(0, cell - 2 * rr);
+            if (straight <= 0.01) {
+              // 圆角达到极限：用四个半圆弧拼成圆形模块
+              paths += `M${x + rr} ${y}` +
+                `a${rr} ${rr} 0 0 1 ${rr} ${rr}` +
+                `a${rr} ${rr} 0 0 1 ${-rr} ${rr}` +
+                `a${rr} ${rr} 0 0 1 ${-rr} ${-rr}` +
+                `a${rr} ${rr} 0 0 1 ${rr} ${-rr}z`;
+            } else {
+              paths += `M${x + rr} ${y}` +
+                `h${straight}` +
+                `a${rr} ${rr} 0 0 1 ${rr} ${rr}` +
+                `v${straight}` +
+                `a${rr} ${rr} 0 0 1 ${-rr} ${rr}` +
+                `h${-straight}` +
+                `a${rr} ${rr} 0 0 1 ${-rr} ${-rr}` +
+                `v${-straight}` +
+                `a${rr} ${rr} 0 0 1 ${rr} ${-rr}z`;
+            }
+          }
+        }
+      }
+    }
+
+    let centerSvg = '';
+    if (hasCenter) {
+      const cx = size / 2, cy = size / 2;
+      const pct = parseInt(centerSizeSlider.value, 10) / 100;
+      const boxSize = size * pct;
+      const radiusPctCenter = parseInt(centerRadiusSlider.value, 10) / 100;
+      const radius = boxSize * radiusPctCenter;
+      const rx = Math.min(radius, boxSize/2);
+      const x = cx - boxSize/2, y = cy - boxSize/2;
+      const strokeW = Math.max(2, size * 0.006);
+
+      centerSvg += `<rect x="${x}" y="${y}" width="${boxSize}" height="${boxSize}" rx="${rx}" ry="${rx}" fill="${bg}" stroke="${fg}" stroke-width="${strokeW}"/>`;
+
+      if (type === 'text' || type === 'emoji') {
+        const str = centerText.value.trim();
+        if (str) {
+          const isEmoji = /\p{Extended_Pictographic}/u.test(str);
+          const fontSize = boxSize * (isEmoji ? 0.62 : 0.5);
+          const escaped = str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          centerSvg += `<text x="${cx}" y="${cy + fontSize * 0.04}" text-anchor="middle" dominant-baseline="central" font-family="Inter,system-ui,sans-serif" font-weight="600" font-size="${fontSize}" fill="${fg}">${escaped}</text>`;
+        }
+      } else if (type === 'image' && logoDataUrl) {
+        const pad = boxSize * 0.15;
+        const maxW = boxSize - pad * 2, maxH = boxSize - pad * 2;
+        const imgW = logoImage ? logoImage.width : 1;
+        const imgH = logoImage ? logoImage.height : 1;
+        const ratio = imgW / imgH;
+        let dw = maxW, dh = maxH;
+        if (ratio > 1) dh = maxW / ratio; else dw = maxH * ratio;
+        const imgRadius = Math.min(radius * 0.9, Math.min(dw, dh) / 2);
+        const ix = cx - dw/2, iy = cy - dh/2;
+        centerSvg += `<defs><clipPath id="logoClip"><rect x="${ix}" y="${iy}" width="${dw}" height="${dh}" rx="${imgRadius}" ry="${imgRadius}"/></clipPath></defs>` +
+          `<image href="${logoDataUrl}" x="${ix}" y="${iy}" width="${dw}" height="${dh}" clip-path="url(#logoClip)" preserveAspectRatio="xMidYMid slice"/>`;
+      }
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+      `<rect width="${size}" height="${size}" fill="${bg}"/>` +
+      `<path d="${paths}" fill="${fg}"/>` +
+      centerSvg +
+      `</svg>`;
+
+    cb(svg, null);
+  }
+
+  function generateQRCode() {
+    const displaySize = parseInt(sizeSlider.value, 10);
+    sizeDisplay.textContent = displaySize + 'px';
+    qrcodeDiv.innerHTML = '';
+
+    if (typeof QRCode === 'undefined' || typeof QRCode.create !== 'function') {
+      previewError.textContent = '二维码库未加载，请检查网络';
+      previewError.hidden = false;
+      return;
+    }
+
+    const hiSize = Math.max(displaySize * 2, 512);
+    drawStyledCanvas(hiSize, function(canvas) {
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.display = 'block';
+      qrcodeDiv.appendChild(canvas);
+    });
+  }
+
+  let timer;
+  function debounced() { clearTimeout(timer); timer = setTimeout(generateQRCode, 80); }
+
+  function getFilename(ext) {
+    const custom = filenameInput.value.trim();
+    const base = custom || (currentMode + '_' + Date.now());
+    const safe = base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+    return safe + '.' + ext;
+  }
+
+  [
+    textInput, wifiSsid, wifiPassword, wifiEncryption,
+    emailTo, emailSubject, emailBody, telNumber,
+    vcardName, vcardOrg, vcardTitle, vcardPhone, vcardEmail, vcardUrl,
+    geoAddress, geoLat, geoLng
+  ].forEach(el => {
+    if (el) {
+      el.addEventListener('input', debounced);
+      el.addEventListener('change', debounced);
+    }
+  });
+
+  sizeSlider.addEventListener('input', function() {
+    sizeDisplay.textContent = this.value + 'px';
+    debounced();
+  });
+  moduleRadiusSlider.addEventListener('input', function() {
+    moduleRadiusDisplay.textContent = this.value + '%';
+    debounced();
+  });
+  fgColor.addEventListener('input', debounced);
+  bgColor.addEventListener('input', debounced);
+
+  centerType.addEventListener('change', function() { updateCenterUI(); debounced(); });
+  centerText.addEventListener('input', debounced);
+
+  centerSizeSlider.addEventListener('input', function() {
+    centerSizeDisplay.textContent = this.value + '%';
+    centerSizeNotice.hidden = parseInt(this.value, 10) <= 28;
+    debounced();
+  });
+  centerRadiusSlider.addEventListener('input', function() {
+    centerRadiusDisplay.textContent = this.value + '%';
+    debounced();
+  });
+
+  logoFile.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      logoPreview.innerHTML = '<span style="color:#b91c1c">图片过大（建议 ≤2MB）</span>';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      logoDataUrl = ev.target.result;
+      const img = new Image();
+      img.src = logoDataUrl;
+      img.decode().then(() => {
+        logoImage = img;
+        logoPreview.innerHTML = '';
+        const thumb = document.createElement('img');
+        thumb.src = logoDataUrl;
+        thumb.style.cssText = 'width:44px;height:44px;object-fit:contain;border-radius:8px;background:#fff;padding:4px;border:1px solid #e2e8f0;';
+        const name = document.createElement('span');
+        name.textContent = '已加载：' + file.name;
+        logoPreview.appendChild(thumb);
+        logoPreview.appendChild(name);
+        debounced();
+      }).catch(() => {
+        logoPreview.innerHTML = '<span style="color:#b91c1c">图片加载失败，请换一张</span>';
+        logoImage = null;
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+
+  regenerateBtn.addEventListener('click', function() { clearTimeout(timer); generateQRCode(); });
+
+  downloadBtn.addEventListener('click', function() {
+    const displaySize = parseInt(sizeSlider.value, 10);
+    if (centerType.value === 'image' && !logoImage) {
+      previewError.textContent = '请先上传 Logo 图片再下载';
+      previewError.hidden = false;
+      return;
+    }
+    downloadBtn.disabled = true;
+    drawStyledCanvas(displaySize, function(canvas) {
+      const link = document.createElement('a');
+      link.download = getFilename('png');
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      downloadBtn.disabled = false;
+    });
+  });
+
+  downloadSvgBtn.addEventListener('click', function() {
+    const displaySize = parseInt(sizeSlider.value, 10);
+    if (centerType.value === 'image' && !logoDataUrl) {
+      previewError.textContent = '请先上传 Logo 图片再下载';
+      previewError.hidden = false;
+      return;
+    }
+    downloadSvgBtn.disabled = true;
+    buildSvg(displaySize, function(svg, err) {
+      downloadSvgBtn.disabled = false;
+      if (err) {
+        previewError.textContent = '生成 SVG 失败：' + err;
+        previewError.hidden = false;
+        return;
+      }
+      const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = getFilename('svg');
+      link.href = url;
+      link.click();
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    });
+  });
+
+  resetBtn.addEventListener('click', function() {
+    setMode('text');
+    textInput.value = 'https://github.com/';
+    wifiSsid.value = ''; wifiPassword.value = ''; wifiEncryption.value = 'WPA';
+    emailTo.value = ''; emailSubject.value = ''; emailBody.value = '';
+    telNumber.value = '';
+    vcardName.value = ''; vcardOrg.value = ''; vcardTitle.value = '';
+    vcardPhone.value = ''; vcardEmail.value = ''; vcardUrl.value = '';
+
+    geoType.value = 'address';
+    geoAddressGroup.style.display = 'flex';
+    geoCoordsGroup.style.display = 'none';
+    geoAddress.value = ''; geoLat.value = ''; geoLng.value = '';
+
+    sizeSlider.value = 280; sizeDisplay.textContent = '280px';
+    fgColor.value = '#0a2540'; bgColor.value = '#ffffff';
+    moduleRadiusSlider.value = 0; moduleRadiusDisplay.textContent = '0%';
+    centerType.value = 'none';
+    centerText.value = '❤';
+    centerSizeSlider.value = 22; centerSizeDisplay.textContent = '22%';
+    centerRadiusSlider.value = 50; centerRadiusDisplay.textContent = '50%';
+    centerSizeNotice.hidden = true;
+    logoFile.value = ''; logoImage = null; logoDataUrl = null; logoPreview.innerHTML = '';
+    previewError.hidden = true;
+    filenameInput.value = '';
+
+    updateCenterUI();
+    generateQRCode();
+  });
+
+  window.addEventListener('load', function() {
+    updateCenterUI();
+    setMode('text');
+  });
+})();
+</script>
+</body>
+</html>
